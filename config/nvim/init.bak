@@ -1,0 +1,190 @@
+" Vim plugins
+call plug#begin()
+
+Plug 'Mofiqul/dracula.nvim'
+Plug 'nvim-treesitter/nvim-treesitter'
+Plug 'neovim/nvim-lspconfig'
+Plug 'williamboman/mason.nvim'
+Plug 'williamboman/mason-lspconfig.nvim'
+Plug 'hrsh/nvim-cmp'
+Plug 'hrsh7th/cmp-nvim-lsp'
+Plug 'hrsh7th/cmp-buffer'
+Plug 'hrsh7th/cmp-path'
+Plug 'hrsh7th/cmp-cmdline'
+Plug 'hrsh7th/nvim-cmp'
+Plug 'hrsh7th/cmp-vsnip'
+Plug 'hrsh7th/vim-vsnip'
+Plug 'CRAG666/code_runner.nvim'
+Plug 'windwp/nvim-autopairs'
+
+call plug#end()
+
+" Initial vim config
+set number
+set relativenumber
+set tabstop=4
+set shiftwidth=4
+set expandtab
+set autoindent
+set clipboard+=unnamedplus
+syntax on
+filetype plugin indent on
+
+" Theme
+colorscheme dracula
+
+" Keybinds
+vnoremap <C-c> "+y
+vnoremap <C-c> "+yy
+vnoremap <C-v> "+p
+vnoremap <C-v> <Esc> "+pa
+nnoremap <C-/> :RunCode
+
+" nvim .lua scripts
+lua << EOF
+-- Code runner config
+require('code_runner').setup({
+  filetype = {
+    python = "python3 -u",
+    cpp = {
+      "cd $dir &&",
+      "g++ -std=c++17 $fileName -o $fileNameWithoutExt &&",
+      "./$fileNameWithoutExt"
+    },
+    java = "javac % && java %<",
+    rust = {
+      "cd $dir &&",
+      "rustc $fileName &&",
+      "$dir/$fileNameWithoutExt"
+    },
+  },
+})
+
+-- Treesitter config
+require'nvim-treesitter.configs'.setup {
+  ensure_installed = { "python", "typescript", "cpp" }, -- or "all"
+  sync_install = false,
+  auto_install = true,
+
+  highlight = {
+    enable = true,
+    additional_vim_regex_highlighting = false,
+  },
+
+  indent = {
+    enable = true
+  },
+}
+
+-- Mason and Mason-LSPconfig config
+require("mason").setup()
+require("mason-lspconfig").setup({
+  ensure_installed = { "lua_ls", "clangd", "pyright", "ts_ls" }, -- add more as needed
+})
+
+-- Set up lspconfig
+-- LSP capabilities with completion
+local capabilities = require('cmp_nvim_lsp').default_capabilities()
+
+-- Set up language servers
+local lspconfig = require('lspconfig')
+
+-- Set up installed servers from Mason
+local servers = { "lua_ls", "clangd", "pyright", "ts_ls" }  -- Add more if needed
+
+for _, lsp in ipairs(servers) do
+  lspconfig[lsp].setup({
+    capabilities = capabilities
+  })
+end
+
+-- nvim-autopairs configuration
+require("nvim-autopairs").setup({})
+
+-- Set up nvim-cmp config
+    local cmp_autopairs = require("nvim-autopairs.completion.cmp")
+    local cmp = require'cmp'
+
+
+    cmp.event:on(
+      "confirm_done",
+      cmp_autopairs.on_confirm_done()
+    )
+
+    cmp.setup({
+        snippet = {
+          -- REQUIRED - you must specify a snippet engine
+          expand = function(args)
+            vim.fn["vsnip#anonymous"](args.body) -- For `vsnip` users.
+            -- require('luasnip').lsp_expand(args.body) -- For `luasnip` users.
+            -- require('snippy').expand_snippet(args.body) -- For `snippy` users.
+            -- vim.fn["UltiSnips#Anon"](args.body) -- For `ultisnips` users.
+            -- vim.snippet.expand(args.body) -- For native neovim snippets (Neovim v0.10+)
+
+            -- For `mini.snippets` users:
+            -- local insert = MiniSnippets.config.expand.insert or MiniSnippets.default_insert
+            -- insert({ body = args.body }) -- Insert at cursor
+            -- cmp.resubscribe({ "TextChangedI", "TextChangedP" })
+            -- require("cmp.config").set_onetime({ sources = {} })
+          end,
+        },
+        window = {
+          -- completion = cmp.config.window.bordered(),
+          -- documentation = cmp.config.window.bordered(),
+        },
+    mapping = cmp.mapping.preset.insert({
+      ['<C-b>'] = cmp.mapping.scroll_docs(-4),
+      ['<C-f>'] = cmp.mapping.scroll_docs(4),
+      ['<C-Space>'] = cmp.mapping.complete(),
+      ['<C-e>'] = cmp.mapping.abort(),
+      ['<CR>'] = cmp.mapping.confirm({ select = true }), -- Accept currently selected item. Set `select` to `false` to only confirm explicitly selected items.
+    }),
+    sources = cmp.config.sources({
+      { name = 'nvim_lsp' },
+      { name = 'vsnip' }, -- For vsnip users.
+      -- { name = 'luasnip' }, -- For luasnip users.
+      -- { name = 'ultisnips' }, -- For ultisnips users.
+      -- { name = 'snippy' }, -- For snippy users.
+    }, {
+      { name = 'buffer' },
+    })
+  })
+
+  -- To use git you need to install the plugin petertriho/cmp-git and uncomment lines below
+  -- Set configuration for specific filetype.
+  --[[ cmp.setup.filetype('gitcommit', {
+    sources = cmp.config.sources({
+      { name = 'git' },
+    }, {
+      { name = 'buffer' },
+    })
+ })
+ require("cmp_git").setup() ]]-- 
+
+  -- Use buffer source for `/` and `?` (if you enabled `native_menu`, this won't work anymore).
+  cmp.setup.cmdline({ '/', '?' }, {
+    mapping = cmp.mapping.preset.cmdline(),
+    sources = {
+      { name = 'buffer' }
+    }
+  })
+
+  -- Use cmdline & path source for ':' (if you enabled `native_menu`, this won't work anymore).
+  cmp.setup.cmdline(':', {
+    mapping = cmp.mapping.preset.cmdline(),
+    sources = cmp.config.sources({
+      { name = 'path' }
+    }, {
+      { name = 'cmdline' }
+    }),
+    matching = { disallow_symbol_nonprefix_matching = false }
+  })
+
+  -- Set up lspconfig.
+  local capabilities = require('cmp_nvim_lsp').default_capabilities()
+  -- Replace <YOUR_LSP_SERVER> with each lsp server you've enabled.
+  require('lspconfig')['<YOUR_LSP_SERVER>'].setup {
+    capabilities = capabilities
+  }
+
+EOF
